@@ -16,9 +16,8 @@ from jupyter_mcp_server.hooks import HookEvent, HookRegistry
 from jupyter_mcp_server.tools._base import BaseTool, ServerMode
 from jupyter_mcp_server.utils import (
     get_current_notebook_context,
-    execute_via_execution_stack,
     safe_extract_outputs,
-    get_jupyter_ydoc,
+    execute_cell_local,
     clean_notebook_outputs,
     wait_for_kernel_idle,
     safe_extract_outputs,
@@ -129,7 +128,7 @@ class ExecuteCellTool(BaseTool):
             List of outputs from the executed cell
         """
         if mode == ServerMode.JUPYTER_SERVER:
-            # JUPYTER_SERVER mode: Use ExecutionStack with YDoc awareness
+            # JUPYTER_SERVER mode: Use execute_cell_local
             from jupyter_mcp_server.jupyter_extension.context import get_server_context
 
             context = get_server_context()
@@ -170,81 +169,16 @@ class ExecuteCellTool(BaseTool):
 
             logger.info(f"Executing cell {cell_index} in JUPYTER_SERVER mode (timeout: {timeout_seconds}s)")
 
-            # Get file_id from file_id_manager
-            file_id_manager = serverapp.web_app.settings.get("file_id_manager")
-            if file_id_manager is None:
-                raise RuntimeError("file_id_manager not available in serverapp")
+            # Execute with local mode
+            outputs = await execute_cell_local(
+                serverapp=serverapp,
+                notebook_path=notebook_path,
+                kernel_id=kernel_id,
+                cell_index=cell_index,
+                timeout=timeout_seconds
+            )
 
-            file_id = file_id_manager.get_id(notebook_path)
-            if file_id is None:
-                file_id = file_id_manager.index(notebook_path)
-
-            # Try to get YDoc if notebook is open
-            ydoc = await get_jupyter_ydoc(serverapp, file_id)
-
-            if ydoc:
-                # Notebook is open - use YDoc and RTC
-                logger.info(f"Notebook {file_id} is open, using RTC mode")
-                
-                num_cells = len(ydoc.ycells)
-                if cell_index >= num_cells:
-                    raise ValueError(f"Cell index {cell_index} out of range (notebook has {num_cells} cells)")
-
-                cell_id = ydoc.ycells[cell_index].get("id")
-                cell_source = ydoc.ycells[cell_index].get("source")
-
-                if isinstance(cell_source, str):
-                    code_to_execute = cell_source
-                else:
-                    code_to_execute = cell_source.to_py()
-
-                if not code_to_execute or not code_to_execute.strip():
-                    return []
-
-                document_id = f"json:notebook:{file_id}"
-
-                # Execute with RTC metadata - outputs will sync automatically
-                outputs = await execute_via_execution_stack(
-                    serverapp=serverapp,
-                    kernel_id=kernel_id,
-                    code=code_to_execute,
-                    document_id=document_id,
-                    cell_id=cell_id,
-                    timeout=timeout_seconds
-                )
-
-                return outputs
-            else:
-                # Notebook not open - use file-based approach
-                logger.info(f"Notebook {file_id} not open, using file mode")
-
-                with open(notebook_path, 'r', encoding='utf-8') as f:
-                    notebook = nbformat.read(f, as_version=4)
-
-                num_cells = len(notebook.cells)
-                if cell_index >= num_cells:
-                    raise ValueError(f"Cell index {cell_index} out of range (notebook has {num_cells} cells)")
-
-                cell = notebook.cells[cell_index]
-                if cell.cell_type != 'code':
-                    raise ValueError(f"Cell {cell_index} is not a code cell")
-
-                code_to_execute = cell.source
-                if not code_to_execute.strip():
-                    return []
-
-                # Execute without RTC metadata
-                outputs = await execute_via_execution_stack(
-                    serverapp=serverapp,
-                    kernel_id=kernel_id,
-                    code=code_to_execute,
-                    timeout=timeout_seconds
-                )
-
-                # Write outputs back to file
-                await self._write_outputs_to_cell(notebook_path, cell_index, outputs)
-
-                return outputs
+            return outputs
 
         elif mode == ServerMode.MCP_SERVER:
             kernel = ensure_kernel_alive_fn()

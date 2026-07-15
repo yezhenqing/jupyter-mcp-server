@@ -534,6 +534,161 @@ class MCPHealthHandler(MCPHandler):
         self.finish()
 
 
+from jupyter_mcp_server.jupyter_extension.context import get_server_context
+from jupyter_mcp_server.server_context import ServerContext
+from jupyter_mcp_server.utils import (
+    get_current_notebook_context,
+    safe_extract_outputs,
+    execute_cell_local,
+    clean_notebook_outputs,
+    wait_for_kernel_idle,
+    safe_extract_outputs, 
+    execute_cell_with_forced_sync,
+    extract_output,
+    safe_notebook_operation
+)
+from jupyter_mcp_server.notebook_manager import NotebookManager
+from jupyter_mcp_server.config import get_config
+
+from jupyter_mcp_server.tools import (
+    # Tool infrastructure
+    ServerMode,
+    # Notebook Management
+    ListNotebooksTool,
+    UseNotebookTool,
+    RestartNotebookTool,
+    UnuseNotebookTool,
+    # Cell Reading
+    ReadNotebookTool,
+    ReadCellTool,
+    # Cell Writing
+    InsertCellTool,
+    OverwriteCellSourceTool,
+    EditCellSourceTool,
+    DeleteCellTool,
+    MoveCellTool,
+    # Cell Execution
+    ExecuteCellTool,
+    # Other Tools
+    ExecuteCodeTool,
+    ListFilesTool,
+    ListKernelsTool,
+    ConnectJupyterTool,
+)
+
+from jupyter_mcp_server.server import __ensure_kernel_alive as ensure_kernel_alive
+import textwrap
+
+class MCPDebugHandler(MCPHandler):
+    """
+    Debug endpoint.
+    
+    GET /mcp/debug
+    """
+    _setup_flag = False
+
+    async def setup(self):
+        if not self._setup_flag:
+            self.notebook_manager = NotebookManager()
+            self.notebook_name = "debug"
+            self.notebook_path = "tutorials/debug.ipynb"
+            self.mode = "connect"
+            self.kernel_id = None
+
+            self.server_context = get_server_context()
+            self.mcp_config = get_config()
+
+            self._setup_flag = True
+
+    async def debug(self):
+        await self.setup()
+
+        use_result = await safe_notebook_operation(
+            lambda: UseNotebookTool().execute(
+                mode="jupyter_server",
+                server_client=None,
+                notebook_name=self.notebook_name,
+                notebook_path=self.notebook_path,
+                use_mode=self.mode,
+                kernel_id=self.kernel_id,
+                ensure_kernel_alive_fn=ensure_kernel_alive,
+                contents_manager=self.server_context.get_contents_manager(),
+                kernel_manager=self.server_context.get_kernel_manager(),
+                session_manager=self.server_context.get_session_manager(),
+                notebook_manager=self.notebook_manager,
+                runtime_url=self.mcp_config.runtime_url if self.mcp_config.runtime_url != "local" else None,
+                runtime_token=self.mcp_config.runtime_token,
+            )
+        )
+        print("Use Notebook result:", use_result)
+
+        print("===========================================")
+
+        cell_index = 0
+
+        ''' 
+        cell_source = textwrap.dedent("""\
+            import numpy as np
+            from matplotlib import pyplot as plt
+            print(np.__version__)
+        """).strip()
+        cell_type = "code"
+
+         
+        insert_result = await safe_notebook_operation(
+            lambda: InsertCellTool().execute(
+                mode="jupyter_server",
+                server_client=None,
+                contents_manager=self.server_context.get_contents_manager(),
+                kernel_manager=self.server_context.get_kernel_manager(),
+                notebook_manager=self.notebook_manager,
+                cell_index=cell_index,
+                cell_source=cell_source,
+                cell_type=cell_type,
+            )
+        )
+        print("Insert Tool result:", insert_result)
+        '''
+
+        exec_result =  await safe_notebook_operation(
+            lambda: ExecuteCellTool().execute(
+                mode="jupyter_server",
+                server_client=None,
+                contents_manager=self.server_context.get_contents_manager(),
+                kernel_manager=self.server_context.get_kernel_manager(),
+                notebook_manager=self.notebook_manager,
+                cell_index=cell_index,
+                timeout_seconds=120,
+                stream=False,
+                progress_interval=5,
+                ensure_kernel_alive_fn=ensure_kernel_alive
+            ),
+            max_retries=1
+        )
+
+        print("Execute Tool result:", exec_result)
+        
+
+
+        info_dict = {
+            "context_type": self.server_context.context_type,
+            "document_url": self.server_context.document_url or self.settings.get("mcp_document_url"),
+            "runtime_url": self.server_context.runtime_url or self.settings.get("mcp_runtime_url"),
+            "extension": "jupyter_mcp_server",
+            "version": "0.20.0",
+        }
+        
+        return info_dict
+
+    async def get(self):
+        """Handle debug request."""
+        debug_info = await self.debug()
+        
+        self.set_header("Content-Type", "application/json")
+        self.write(json.dumps(debug_info))
+        self.finish()
+
+
 class MCPToolsListHandler(MCPHandler):
     """
     List available MCP tools.

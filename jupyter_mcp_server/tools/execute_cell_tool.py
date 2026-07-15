@@ -177,9 +177,7 @@ class ExecuteCellTool(BaseTool):
                 cell_index=cell_index,
                 timeout=timeout_seconds
             )
-
-            return outputs
-
+            return outputs 
         elif mode == ServerMode.MCP_SERVER:
             kernel = ensure_kernel_alive_fn()
             await wait_for_kernel_idle(kernel, max_wait_seconds=30)

@@ -19,6 +19,8 @@ from jupyter_mcp_server.jupyter_extension.handlers import (
     MCPHealthHandler,
     MCPToolsListHandler,
     MCPToolsCallHandler,
+
+    MCPDebugHandler,
 )
 
 
@@ -193,7 +195,7 @@ class JupyterMCPServerExtensionApp(ExtensionAppJinjaMixin, ExtensionApp):
                 )
                 notebook_manager.set_current_notebook("default")
                 logger.info(f"Auto-enrolled document '{self.document_id}' as 'default'")
-        
+    
         logger.info("Jupyter MCP Server Extension settings initialized")
     
     def initialize_handlers(self):
@@ -224,6 +226,8 @@ class JupyterMCPServerExtensionApp(ExtensionAppJinjaMixin, ExtensionApp):
             (url_path_join("mcp/healthz"), MCPHealthHandler),
             (url_path_join("mcp/tools/list"), MCPToolsListHandler),
             (url_path_join("mcp/tools/call"), MCPToolsCallHandler),
+
+            (url_path_join("mcp/debug"), MCPDebugHandler),
         ]
         
         # Register handlers

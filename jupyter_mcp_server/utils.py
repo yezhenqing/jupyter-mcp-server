@@ -648,6 +648,10 @@ async def execute_cell_local(
         
         if file_id_manager:
             file_id = file_id_manager.get_id(notebook_path)
+
+            if file_id is None:
+                file_id = file_id_manager.index(notebook_path)
+
             yroom_manager = serverapp.web_app.settings.get("yroom_manager")
             
             if yroom_manager:
@@ -659,9 +663,14 @@ async def execute_cell_local(
                         logger.info(f"Using YDoc for cell {cell_index} execution")
                     except Exception as e:
                         logger.debug(f"Could not get YDoc: {e}")
+            else:              
+                ydoc = await get_jupyter_ydoc(serverapp, file_id)
+
         
+        # it is better to use file mode for execute_cell_local
         # Execute using YDoc or file
         if ydoc:
+            print("#########execute_cell_local: YDoc mode=========")
             # YDoc path - read from collaborative document
             if cell_index < 0 or cell_index >= len(ydoc.ycells):
                 raise ValueError(f"Cell index {cell_index} out of range. Notebook has {len(ydoc.ycells)} cells.")
@@ -704,6 +713,8 @@ async def execute_cell_local(
             
             cell["execution_count"] = max_count + 1
             
+
+            ''' 
             # Update outputs in YDoc (simplified - just store formatted strings)
             # YDoc outputs should match nbformat structure
             cell["outputs"] = []
@@ -714,9 +725,55 @@ async def execute_cell_local(
                         "name": "stdout",
                         "text": output
                     })
+            '''
             
+            # 更新 YDoc - 使用 transaction 操作 YArray
+            cell_outputs = cell["outputs"]  # 获取 YArray
+            
+            with cell.doc.transaction(): 
+                # 清空现有 outputs
+                while len(cell_outputs) > 0:
+                    cell_outputs.pop(0)
+                
+                for output in outputs:
+                    if isinstance(output, str):
+                        # 文本输出
+                        cell_outputs.append({
+                            "output_type": "stream",
+                            "name": "stdout",
+                            "text": output
+                        })
+                    elif isinstance(output, ImageContent):
+                        cell_outputs.append({
+                            "output_type": "display_data",
+                            "data": {'image/png': output.data},
+                            "metadata": {}
+                        })
+                    # let's put other cases aside for now.  
+                    #elif isinstance(output, dict):
+                    #    if "output_type" in output:
+                    #        cell_outputs.append(output)
+                    #    else:
+                    #        cell_outputs.append({
+                    #            "output_type": "display_data",
+                    #            "data": output,
+                    #            "metadata": {}
+                    #        })
+                    #else:
+                    #    cell_outputs.append({
+                    #        "output_type": "stream",
+                    #        "name": "stdout",
+                    #        "text": str(output)
+                    #    })
+                        
+
+            
+            # Log the update for debugging
+            logger.info(f"Ydoc Updated cell outputs: {cell.get('outputs', [])}")
+        
             return outputs
         else:
+            print("#########execute_cell_local: File mode=========")
             # File path - original logic
             # Read notebook as version 4 (latest) for consistency
             with open(notebook_path, 'r', encoding='utf-8') as f:

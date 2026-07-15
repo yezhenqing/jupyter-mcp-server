@@ -249,13 +249,11 @@ class InsertCellTool(BaseTool):
 
             if serverapp:
                 # Try YDoc approach first (with thread safety and transactions)
-                print("----------insert_cell_ydoc--------------")
                 notebook, actual_index, new_total_cells = await self._insert_cell_ydoc(
                     serverapp, notebook_path, cell_index, cell_type, cell_source
                 )
             else:
                 # Fall back to file operations
-                print("----------insert_cell_file--------------")
                 notebook, actual_index, new_total_cells = await self._insert_cell_file(
                     notebook_path, cell_index, cell_type, cell_source
                 )

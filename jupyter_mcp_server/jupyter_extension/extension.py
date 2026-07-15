@@ -19,8 +19,7 @@ from jupyter_mcp_server.jupyter_extension.handlers import (
     MCPHealthHandler,
     MCPToolsListHandler,
     MCPToolsCallHandler,
-
-    MCPDebugHandler,
+    #MCPDebugHandler,
 )
 
 
@@ -227,7 +226,7 @@ class JupyterMCPServerExtensionApp(ExtensionAppJinjaMixin, ExtensionApp):
             (url_path_join("mcp/tools/list"), MCPToolsListHandler),
             (url_path_join("mcp/tools/call"), MCPToolsCallHandler),
 
-            (url_path_join("mcp/debug"), MCPDebugHandler),
+            #(url_path_join("mcp/debug"), MCPDebugHandler),
         ]
         
         # Register handlers

@@ -21,6 +21,24 @@ from jupyter_mcp_server.jupyter_extension.backends.remote_backend import RemoteB
 from jupyter_mcp_server.utils import clean_mcp_response, clean_mcp_response_content
 
 
+
+#from jupyter_mcp_server.jupyter_extension.context import get_server_context
+#from jupyter_mcp_server.server_context import ServerContext
+#from jupyter_mcp_server.utils import (
+#    safe_notebook_operation
+#)
+#from jupyter_mcp_server.notebook_manager import NotebookManager
+#from jupyter_mcp_server.config import get_config
+
+#from jupyter_mcp_server.tools import (
+#    UseNotebookTool,
+#    ExecuteCellTool,
+#)
+
+#from jupyter_mcp_server.server import __ensure_kernel_alive as ensure_kernel_alive
+#import textwrap
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -533,52 +551,7 @@ class MCPHealthHandler(MCPHandler):
         self.write(json.dumps(health_info))
         self.finish()
 
-
-from jupyter_mcp_server.jupyter_extension.context import get_server_context
-from jupyter_mcp_server.server_context import ServerContext
-from jupyter_mcp_server.utils import (
-    get_current_notebook_context,
-    safe_extract_outputs,
-    execute_cell_local,
-    clean_notebook_outputs,
-    wait_for_kernel_idle,
-    safe_extract_outputs, 
-    execute_cell_with_forced_sync,
-    extract_output,
-    safe_notebook_operation
-)
-from jupyter_mcp_server.notebook_manager import NotebookManager
-from jupyter_mcp_server.config import get_config
-
-from jupyter_mcp_server.tools import (
-    # Tool infrastructure
-    ServerMode,
-    # Notebook Management
-    ListNotebooksTool,
-    UseNotebookTool,
-    RestartNotebookTool,
-    UnuseNotebookTool,
-    # Cell Reading
-    ReadNotebookTool,
-    ReadCellTool,
-    # Cell Writing
-    InsertCellTool,
-    OverwriteCellSourceTool,
-    EditCellSourceTool,
-    DeleteCellTool,
-    MoveCellTool,
-    # Cell Execution
-    ExecuteCellTool,
-    # Other Tools
-    ExecuteCodeTool,
-    ListFilesTool,
-    ListKernelsTool,
-    ConnectJupyterTool,
-)
-
-from jupyter_mcp_server.server import __ensure_kernel_alive as ensure_kernel_alive
-import textwrap
-
+''' 
 class MCPDebugHandler(MCPHandler):
     """
     Debug endpoint.
@@ -622,11 +595,9 @@ class MCPDebugHandler(MCPHandler):
         )
         print("Use Notebook result:", use_result)
 
-        print("===========================================")
-
         cell_index = 0
 
-        ''' 
+        
         cell_source = textwrap.dedent("""\
             import numpy as np
             from matplotlib import pyplot as plt
@@ -634,7 +605,6 @@ class MCPDebugHandler(MCPHandler):
         """).strip()
         cell_type = "code"
 
-         
         insert_result = await safe_notebook_operation(
             lambda: InsertCellTool().execute(
                 mode="jupyter_server",
@@ -648,8 +618,7 @@ class MCPDebugHandler(MCPHandler):
             )
         )
         print("Insert Tool result:", insert_result)
-        '''
-
+        
         exec_result =  await safe_notebook_operation(
             lambda: ExecuteCellTool().execute(
                 mode="jupyter_server",
@@ -668,8 +637,6 @@ class MCPDebugHandler(MCPHandler):
 
         print("Execute Tool result:", exec_result)
         
-
-
         info_dict = {
             "context_type": self.server_context.context_type,
             "document_url": self.server_context.document_url or self.settings.get("mcp_document_url"),
@@ -677,7 +644,6 @@ class MCPDebugHandler(MCPHandler):
             "extension": "jupyter_mcp_server",
             "version": "0.20.0",
         }
-        
         return info_dict
 
     async def get(self):
@@ -687,7 +653,7 @@ class MCPDebugHandler(MCPHandler):
         self.set_header("Content-Type", "application/json")
         self.write(json.dumps(debug_info))
         self.finish()
-
+'''
 
 class MCPToolsListHandler(MCPHandler):
     """

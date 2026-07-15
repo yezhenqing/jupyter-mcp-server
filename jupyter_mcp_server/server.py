@@ -671,13 +671,6 @@ async def insert_execute_code_cell(
         )
     )
 
-    # to avoid race condition, particularly in local_execute_cell File mode
-    # https://jupyterlab-realtime-collaboration.readthedocs.io/en/latest/configuration.html
-    # better to align to YDocExtension.file_poll_interval = 2
-    # here just for simplicity
-    # ExecuteCellTool need to wait for 
-    #await asyncio.sleep(2) 
-
     return await safe_notebook_operation(
         lambda: ExecuteCellTool().execute(
             mode=server_context.mode,

@@ -670,7 +670,6 @@ async def execute_cell_local(
         # it is better to use file mode for execute_cell_local
         # Execute using YDoc or file
         if ydoc:
-            print("#########execute_cell_local: YDoc mode=========")
             # YDoc path - read from collaborative document
             if cell_index < 0 or cell_index >= len(ydoc.ycells):
                 raise ValueError(f"Cell index {cell_index} out of range. Notebook has {len(ydoc.ycells)} cells.")
@@ -703,8 +702,11 @@ async def execute_cell_local(
                 logger=logger
             )
             
-            logger.info(f"Execution completed with {len(outputs)} outputs: {outputs}")
-            
+            #logger.info(f"Execution completed with {len(outputs)} outputs: {outputs}")
+            logger.info(
+                f"Execution completed with {len(outputs)} outputs: {str(outputs[0])[:100]}..." 
+                if outputs else "Execution completed with 0 outputs."
+            )
             # Update execution count in YDoc
             max_count = 0
             for c in ydoc.ycells:
@@ -727,17 +729,14 @@ async def execute_cell_local(
                     })
             '''
             
-            # 更新 YDoc - 使用 transaction 操作 YArray
-            cell_outputs = cell["outputs"]  # 获取 YArray
+            cell_outputs = cell["outputs"]  # fetch YArray
             
             with cell.doc.transaction(): 
-                # 清空现有 outputs
                 while len(cell_outputs) > 0:
                     cell_outputs.pop(0)
                 
                 for output in outputs:
                     if isinstance(output, str):
-                        # 文本输出
                         cell_outputs.append({
                             "output_type": "stream",
                             "name": "stdout",
@@ -766,14 +765,8 @@ async def execute_cell_local(
                     #        "text": str(output)
                     #    })
                         
-
-            
-            # Log the update for debugging
-            logger.info(f"Ydoc Updated cell outputs: {cell.get('outputs', [])}")
-        
             return outputs
         else:
-            print("#########execute_cell_local: File mode=========")
             # File path - original logic
             # Read notebook as version 4 (latest) for consistency
             with open(notebook_path, 'r', encoding='utf-8') as f:

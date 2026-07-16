@@ -91,7 +91,7 @@ class NotebookManager:
         token: Optional[str] = None,
         path: Optional[str] = None
     ) -> None:
-        """
+        """ 
         Add a notebook to the manager.
         
         Args:

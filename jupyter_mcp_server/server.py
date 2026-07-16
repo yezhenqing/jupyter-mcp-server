@@ -362,6 +362,7 @@ async def list_kernels() -> Annotated[str, Field(description="Tab-separated tabl
         )
     )
 
+
 ###############################################################################
 # Multi-Notebook Management Tools.
 
@@ -378,6 +379,7 @@ async def use_notebook(
     notebook_path: Annotated[str, Field(description="Path to the notebook file, relative to the Jupyter server root (e.g. 'notebook.ipynb')")],
     mode: Annotated[Literal["connect", "create"], Field(description="Notebook operation mode: 'connect' to connect to existing and activate it, 'create' to create new and activate it")] = "connect",
     kernel_id: Annotated[str, Field(description="Specific kernel ID to use (will create new if skipped)")] = None,
+    kernel_name: Annotated[Optional[str], Field(description="Kernel spec name to use when starting a new kernel (e.g. 'python3', 'ir', 'bash'). Defaults to 'python3' if not specified.")] = "python3",
 ) -> Annotated[str, Field(description="Success message with notebook information")]:
     """Use a notebook and activate it for following cell operations.
     All cell operations will be performed on the currently activated notebook.
@@ -393,9 +395,11 @@ async def use_notebook(
             notebook_path=notebook_path,
             use_mode=mode,
             kernel_id=kernel_id,
+            kernel_name=kernel_name,
             ensure_kernel_alive_fn=__ensure_kernel_alive,
             contents_manager=server_context.contents_manager,
             kernel_manager=server_context.kernel_manager,
+            kernel_spec_manager=server_context.kernel_spec_manager,
             session_manager=server_context.session_manager,
             notebook_manager=notebook_manager,
             runtime_url=config.runtime_url if config.runtime_url != "local" else None,
@@ -630,6 +634,8 @@ async def execute_cell(
             server_client=server_context.server_client,
             contents_manager=server_context.contents_manager,
             kernel_manager=server_context.kernel_manager,
+            kernel_spec_manager=server_context.kernel_spec_manager,
+            session_manager=server_context.session_manager,
             notebook_manager=notebook_manager,
             cell_index=cell_index,
             timeout_seconds=effective_timeout,

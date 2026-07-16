@@ -13,6 +13,7 @@ from mcp.types import ImageContent
 from jupyter_mcp_server.hooks import HookEvent, HookRegistry
 from jupyter_mcp_server.tools._base import BaseTool, ServerMode
 from jupyter_mcp_server.notebook_manager import NotebookManager
+from jupyter_mcp_server.utils import extract_kernelspec_name_from_notebook
 
 logger = logging.getLogger(__name__)
 
@@ -171,15 +172,50 @@ class ExecuteCodeTool(BaseTool):
         
         # JUPYTER_SERVER mode: Use kernel_manager directly
         if mode == ServerMode.JUPYTER_SERVER and kernel_manager is not None:
+            from jupyter_mcp_server.jupyter_extension.context import get_server_context
+            context = get_server_context()
+            serverapp = context.serverapp
+            if serverapp is None:
+                raise ValueError("serverapp is required for JUPYTER_SERVER mode")
+            if kernel_manager is None:
+                raise ValueError("kernel_manager is required for JUPYTER_SERVER mode")
+            
             if kernel_id is None:
                 # Try to get kernel_id from context
                 from jupyter_mcp_server.utils import get_current_notebook_context
-                _, kernel_id = get_current_notebook_context(notebook_manager)
-            
+                notebook_path, kernel_id = get_current_notebook_context(notebook_manager)
+                 # Resolve to absolute path
+                if notebook_path and serverapp and not Path(notebook_path).is_absolute():
+                    root_dir = serverapp.root_dir
+                    notebook_path = str(Path(root_dir) / notebook_path)
+
             if kernel_id is None:
+                # Resolve expected kernel_name (from .ipynb file metadata)
+                target_kernel_name = "python3"
+                if notebook_path:
+                    extracted_name = await extract_kernelspec_name_from_notebook(
+                        mode=mode,
+                        notebook_path=notebook_path,
+                        contents_manager=contents_manager,
+                        server_client=None
+                    )
+                    if extracted_name:
+                        # Optional: Verify spec exists in system if spec manager / client available
+                        spec_exists = False
+                        if kernel_spec_manager is not None:
+                            spec_exists = extracted_name in kernel_spec_manager.find_kernel_specs()
+                        
+                        if spec_exists:
+                            target_kernel_name = extracted_name
+                        else:
+                            logger.warning(
+                                f"Extracted kernel spec '{extracted_name}' from notebook metadata is not installed on this server. "
+                                f"Falling back to '{target_kernel_name}'."
+                            )
+
                 # No kernel available - start a new one on demand
                 logger.info("No kernel_id available, starting new kernel for execute_code")
-                kernel_id = await kernel_manager.start_kernel()
+                kernel_id = await kernel_manager.start_kernel(kernel_name=target_kernel_name)
                 
                 # Store the kernel in notebook_manager if available
                 if notebook_manager is not None:

@@ -22,7 +22,8 @@ from jupyter_mcp_server.utils import (
     wait_for_kernel_idle,
     safe_extract_outputs,
     execute_cell_with_forced_sync,
-    extract_output
+    extract_output,
+    extract_kernelspec_name_from_notebook
 )
 
 logger = logging.getLogger(__name__)
@@ -101,6 +102,7 @@ class ExecuteCellTool(BaseTool):
         contents_manager=None,
         kernel_manager=None,
         kernel_spec_manager=None,
+        session_manager=None,
         notebook_manager=None,
         serverapp=None,
         # Tool-specific parameters
@@ -117,6 +119,8 @@ class ExecuteCellTool(BaseTool):
             mode: Server mode (MCP_SERVER or JUPYTER_SERVER)
             serverapp: ServerApp instance for JUPYTER_SERVER mode
             kernel_manager: Kernel manager for JUPYTER_SERVER mode
+            kernel_spec_manager: Kernel spec manager for JUPYTER_SERVER mode
+            session_manager: Session manager for JUPYTER_SERVER mode
             notebook_manager: Notebook manager for MCP_SERVER mode
             cell_index: Index of the cell to execute (0-based)
             timeout_seconds: Maximum seconds to wait for execution
@@ -149,9 +153,32 @@ class ExecuteCellTool(BaseTool):
 
             # Check if kernel needs to be started
             if kernel_id is None:
+                # Resolve expected kernel_name (from .ipynb file metadata)
+                target_kernel_name = "python3"
+                if notebook_path:
+                    extracted_name = await extract_kernelspec_name_from_notebook(
+                        mode=mode,
+                        notebook_path=notebook_path,
+                        contents_manager=contents_manager,
+                        server_client=None
+                    )
+                    if extracted_name:
+                        # Optional: Verify spec exists in system if spec manager / client available
+                        spec_exists = False
+                        if kernel_spec_manager is not None:
+                            spec_exists = extracted_name in kernel_spec_manager.find_kernel_specs()
+                        
+                        if spec_exists:
+                            target_kernel_name = extracted_name
+                        else:
+                            logger.warning(
+                                f"Extracted kernel spec '{extracted_name}' from notebook metadata is not installed on this server. "
+                                f"Falling back to '{target_kernel_name}'."
+                            )
+
                 # No kernel available - start a new one on demand
                 logger.info("No kernel_id available, starting new kernel for execute_cell")
-                kernel_id = await kernel_manager.start_kernel()
+                kernel_id = await kernel_manager.start_kernel(kernel_name=target_kernel_name)
 
                 # Wait a bit for kernel to initialize
                 await asyncio.sleep(1.0)
@@ -166,6 +193,23 @@ class ExecuteCellTool(BaseTool):
                         server_url="local",
                         path=notebook_path
                     )
+
+                # Since the kernel is initialized here, it is better to bind the session here as well, 
+                # consistent with UseNotebookTool, so UI stays in sync
+                if session_manager and notebook_path:
+                    try:
+                        # create_session is an async method, so we await it directly
+                        session_dict = await session_manager.create_session(
+                            path=notebook_path,
+                            kernel_id=kernel_id,
+                            type="notebook",
+                            name=notebook_path
+                        )
+                        logger.info(f"Created Jupyter session '{session_dict.get('id')}' for notebook '{notebook_path}' with kernel '{kernel_id}'")
+                    except Exception as e:
+                        logger.warning(f"Failed to create Jupyter session: {e}. Notebook may not be properly connected in JupyterLab UI.")
+                else:
+                    logger.warning("No session_manager available. Notebook may not be properly connected in JupyterLab UI.")
 
             logger.info(f"Executing cell {cell_index} in JUPYTER_SERVER mode (timeout: {timeout_seconds}s)")
 

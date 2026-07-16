@@ -6,11 +6,13 @@ import re
 import asyncio
 import time
 import json
-from typing import Any, Union
+from typing import Any, Union, Optional
 from mcp.types import ImageContent
 from jupyter_mcp_server.config import ALLOW_IMG_OUTPUT
 from jupyter_mcp_server.hooks import HookEvent, HookRegistry
 from jupyter_nbmodel_client import NotebookModel
+from jupyter_mcp_server.tools._base import BaseTool, ServerMode
+from jupyter_server_client import JupyterServerClient
 
 
 def get_current_notebook_context(notebook_manager=None):
@@ -950,3 +952,29 @@ def clean_mcp_response(response_dict):
         cleaned_response["content"] = cleaned_content
     
     return cleaned_response
+
+
+async def extract_kernelspec_name_from_notebook(
+        mode: ServerMode,
+        notebook_path: str,
+        contents_manager: Optional[Any] = None,
+        server_client: Optional[JupyterServerClient] = None,
+    ) -> Optional[str]:
+        """Attempt to extract kernel spec name from existing notebook metadata."""
+        try:
+            metadata = {}
+            if mode == ServerMode.JUPYTER_SERVER and contents_manager is not None:
+                model = await contents_manager.get(notebook_path, content=True, type='notebook')
+                content = model.get('content', {})
+                metadata = content.get('metadata', {})
+            elif mode == ServerMode.MCP_SERVER and server_client is not None:
+                nb_content = server_client.contents.get(notebook_path)
+                metadata = nb_content.get('content', {}).get('metadata', {})
+
+            kernel_spec = metadata.get('kernelspec', {})
+            spec_name = kernel_spec.get('name')
+            if spec_name:
+                return spec_name
+        except Exception as e:
+            pass
+        return None

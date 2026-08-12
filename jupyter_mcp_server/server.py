@@ -11,7 +11,7 @@ from typing import Annotated, Literal, Optional
 from urllib.parse import urlsplit
 
 from fastapi import Request
-from jupyter_kernel_client import KernelClient
+from jupyter_kernel_client import JupyterKernelClient as KernelClient
 from mcp.server import FastMCP
 from mcp.server.auth.provider import AccessToken
 from mcp.types import ImageContent, ToolAnnotations

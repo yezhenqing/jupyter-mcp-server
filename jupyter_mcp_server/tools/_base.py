@@ -9,7 +9,7 @@ from enum import Enum
 from typing import Any, Optional
 
 from jupyter_server_client import JupyterServerClient
-from jupyter_kernel_client import KernelClient
+from jupyter_kernel_client import JupyterKernelClient as KernelClient
 
 
 class ServerMode(str, Enum):

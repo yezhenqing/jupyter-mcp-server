@@ -8,7 +8,7 @@ import logging
 from typing import Any, Optional, Literal
 from pathlib import Path
 from jupyter_server_client import JupyterServerClient, NotFoundError
-from jupyter_kernel_client import KernelClient
+from jupyter_kernel_client import JupyterKernelClient as KernelClient
 from jupyter_mcp_server.tools._base import BaseTool, ServerMode
 from jupyter_mcp_server.notebook_manager import NotebookManager
 from jupyter_mcp_server.models import Notebook

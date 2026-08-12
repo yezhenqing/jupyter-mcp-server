@@ -13,7 +13,7 @@ from typing import Dict, Any, Optional, Callable, Union
 from types import TracebackType
 
 from jupyter_nbmodel_client import NbModelClient, get_notebook_websocket_url
-from jupyter_kernel_client import KernelClient
+from jupyter_kernel_client import JupyterKernelClient as KernelClient
 
 from .config import get_config
 

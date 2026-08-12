@@ -255,7 +255,7 @@ def format_TSV(headers: list[str], rows: list[list[str]]) -> str:
 
 def create_kernel(config, logger):
     """Create a new kernel instance using current configuration."""
-    from jupyter_kernel_client import KernelClient
+    from jupyter_kernel_client import JupyterKernelClient as KernelClient
     kernel = None
     try:
         # Initialize the kernel client with the provided parameters.
